@@ -14,7 +14,7 @@ Fork of [every-app/open-seo](https://github.com/every-app/open-seo), deployed to
 
 Keep these small so upstream merges stay clean.
 
-1. `deploy/alchemy/alchemy.run.ts`: `SELFHOST_DOMAIN` env var serves the app on a custom hostname, points the Access gate at it, and turns off the workers.dev URL.
+1. `deploy/alchemy/alchemy.run.ts`: `SELFHOST_DOMAIN` + `SELFHOST_ZONE_ID` serve the app on a custom hostname via a Worker route, point the Access gate at it, and turn off the workers.dev URL. It uses a route, not alchemy's `domain`, because alchemy only checks the first page of zones and SGD has 139. The route relies on a proxied DNS record `openseo.sgd.com.au AAAA 100::` (created 25 Oct 2026).
 2. `deploy/.env.selfhost.example`: documents `SELFHOST_DOMAIN`.
 3. This file and the update workflow.
 
@@ -34,5 +34,8 @@ New SGD features: build them on a branch, merge to `main`, and the workflow depl
 
 ## Cloudflare API token for GitHub Actions
 
-Account permissions: Workers Scripts Edit, Workers KV Storage Edit, D1 Edit, Workers R2 Storage Edit, Secrets Store Read, Account Settings Read, Access: Apps and Policies Edit, Access: Organizations, Identity Providers, and Groups Read, Browser Rendering Edit.
+One token serves both local deploys (`alchemy login`, choose "API Token") and GitHub Actions.
+
+Account permissions: Workers Scripts Edit, Workers KV Storage Edit, D1 Edit, Workers R2 Storage Edit, Secrets Store Edit, Account Settings Read, Access: Apps and Policies Edit, Access: Organizations, Identity Providers, and Groups Edit, Browser Rendering Edit.
 Zone permissions (sgd.com.au): Zone Read, Workers Routes Edit, DNS Edit.
+User permissions: User Details Read, Memberships Read.

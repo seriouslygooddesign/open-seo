@@ -324,6 +324,14 @@ export default Alchemy.Stack(
     // openseo.sgd.com.au). When set, the app worker serves that domain, the
     // Access gate protects it, and the workers.dev URL is switched off.
     const selfHostDomain = prod ? "" : yield* optionalVar("SELFHOST_DOMAIN");
+    const selfHostZoneId = yield* optionalVar("SELFHOST_ZONE_ID");
+    if (selfHostDomain && !selfHostZoneId) {
+      return yield* Effect.die(
+        new Error(
+          "SELFHOST_DOMAIN needs SELFHOST_ZONE_ID (the zone's id from its Overview page).",
+        ),
+      );
+    }
 
     // Auth needs an absolute BETTER_AUTH_URL. Prod sets it explicitly;
     // previews always derive it from the deterministic worker name — a wrong
@@ -432,12 +440,19 @@ export default Alchemy.Stack(
     const app = yield* Cloudflare.Worker("open-seo", {
       name: workerName(stage),
       // Prod serves the real domains; the zone is inferred from the hostname.
-      domain: prod
-        ? ["app.openseo.so", "www.app.openseo.so"]
-        : selfHostDomain
-          ? [selfHostDomain]
-          : undefined,
-      ...(selfHostDomain ? { url: false } : {}),
+      domain: prod ? ["app.openseo.so", "www.app.openseo.so"] : undefined,
+      // SGD: a route with an explicit zone id, not `domain`. Alchemy infers a
+      // custom domain's zone from the first page of the account's zones only,
+      // which misses sgd.com.au on an account with 100+ zones. The route needs
+      // a proxied DNS record for the hostname (created once, by hand).
+      ...(selfHostDomain
+        ? {
+            url: false,
+            routes: [
+              { pattern: `${selfHostDomain}/*`, zoneId: selfHostZoneId },
+            ],
+          }
+        : {}),
       // Prebuilt worker from `vite build` (@cloudflare/vite-plugin). The entry
       // exports the DO + WorkflowEntrypoint classes (re-exported by
       // src/server.ts), which `bundle: false` requires. Sibling chunks under
