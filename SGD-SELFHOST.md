@@ -26,7 +26,7 @@ New SGD features: build them on a branch, merge to `main`, and the workflow depl
 
 **Update now:** Actions tab, "SGD self-host update", "Run workflow".
 
-**Deploy from a laptop:** `pnpm install && pnpm deploy:selfhost --yes` (needs `.env.selfhost` and `pnpm alchemy login`).
+**Deploy from a laptop:** `pnpm install && pnpm deploy:selfhost --yes` (needs `.env.selfhost` and a one-off `pnpm alchemy login deploy/alchemy/alchemy.run.ts --configure`, then `pnpm alchemy cloudflare bootstrap`). Plain `pnpm alchemy login` from the upstream docs fails: it looks for `alchemy.run.ts` in the repo root.
 
 **Upstream conflict:** `git fetch upstream && git merge upstream/main`, resolve, push to `main`.
 
