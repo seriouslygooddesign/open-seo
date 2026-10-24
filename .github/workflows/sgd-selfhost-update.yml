@@ -100,6 +100,15 @@ jobs:
           echo "::error::$APP_URL did not answer with a Cloudflare Access login. Check the deploy and Access application."
           exit 1
 
+      # Keep main (and so the SGD Claude plugin's skills) current with
+      # upstream. GITHUB_TOKEN cannot push upstream changes to workflow files
+      # and its pushes never re-trigger this workflow, so a refused push only
+      # warns: merge upstream into main locally when that happens.
+      - name: Push merged upstream to main
+        continue-on-error: true
+        run: |
+          git push origin HEAD:main || echo "::warning::Could not push the upstream merge to main (likely upstream workflow changes). Merge upstream/main into main locally."
+
       - name: Record deploy
         run: |
           msg="Deployed upstream ${{ steps.merge.outputs.upstream_sha }} + main $(git rev-parse --short origin/main)"

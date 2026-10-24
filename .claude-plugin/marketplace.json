@@ -1,10 +1,10 @@
 {
-  "name": "openseo",
+  "name": "sgd-openseo",
   "owner": {
-    "name": "OpenSEO",
-    "url": "https://openseo.so"
+    "name": "Seriously Good Design",
+    "url": "https://sgd.com.au"
   },
-  "description": "OpenSEO's official Claude Code plugin marketplace.",
+  "description": "SGD's OpenSEO plugin, connected to the self-hosted openseo.sgd.com.au.",
   "plugins": [
     {
       "name": "openseo",

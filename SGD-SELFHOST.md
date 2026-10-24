@@ -16,7 +16,8 @@ Keep these small so upstream merges stay clean.
 
 1. `deploy/alchemy/alchemy.run.ts`: `SELFHOST_DOMAIN` + `SELFHOST_ZONE_ID` serve the app on a custom hostname via a Worker route, point the Access gate at it, and turn off the workers.dev URL. It uses a route, not alchemy's `domain`, because alchemy only checks the first page of zones and SGD has 139. The route relies on a proxied DNS record `openseo.sgd.com.au AAAA 100::` (created 25 Oct 2026).
 2. `deploy/.env.selfhost.example`: documents `SELFHOST_DOMAIN`.
-3. This file and the update workflow.
+3. `.claude-plugin/marketplace.json` + `plugins/openseo/.mcp.json`: the Claude plugin is republished as marketplace `sgd-openseo`, with its MCP pointed at `https://openseo.sgd.com.au/mcp`. Install with `claude plugin marketplace add seriouslygooddesign/open-seo` then `claude plugin install openseo@sgd-openseo`.
+4. This file and the update workflow (which also pushes the upstream merge to `main` when it can, so plugin skills stay current).
 
 New SGD features: build them on a branch, merge to `main`, and the workflow deploys them.
 
@@ -31,6 +32,10 @@ New SGD features: build them on a branch, merge to `main`, and the workflow depl
 **Upstream conflict:** `git fetch upstream && git merge upstream/main`, resolve, push to `main`.
 
 **Logs:** Cloudflare dashboard, Workers, `open-seo-selfhost`, Logs. Or `pnpm exec wrangler tail open-seo-selfhost`.
+
+## MCP login (Managed OAuth)
+
+Claude signs in to `/mcp` through Cloudflare Access Managed OAuth, enabled on the `open-seo selfhost` Access app (dynamic client registration, localhost and loopback allowed). Turned on via the API on 25 Oct 2026. Deploys leave it alone unless the app's domain or name changes; if MCP login breaks after such a change, re-enable it in Zero Trust, Access, Applications, Edit, Additional settings, OAuth.
 
 ## Cloudflare API token for GitHub Actions
 
