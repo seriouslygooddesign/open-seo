@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "openseo": {
+    "openseo-sgd": {
       "type": "http",
       "url": "https://openseo.sgd.com.au/mcp"
     }

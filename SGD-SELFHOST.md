@@ -16,7 +16,7 @@ Keep these small so upstream merges stay clean.
 
 1. `deploy/alchemy/alchemy.run.ts`: `SELFHOST_DOMAIN` + `SELFHOST_ZONE_ID` serve the app on a custom hostname via a Worker route, point the Access gate at it, and turn off the workers.dev URL. It uses a route, not alchemy's `domain`, because alchemy only checks the first page of zones and SGD has 139. The route relies on a proxied DNS record `openseo.sgd.com.au AAAA 100::` (created 25 Oct 2026).
 2. `deploy/.env.selfhost.example`: documents `SELFHOST_DOMAIN`.
-3. `.claude-plugin/marketplace.json` + `plugins/openseo/.mcp.json`: the Claude plugin is republished as marketplace `sgd-openseo`, with its MCP pointed at `https://openseo.sgd.com.au/mcp`. Install with `claude plugin marketplace add seriouslygooddesign/open-seo` then `claude plugin install openseo@sgd-openseo`.
+3. `.claude-plugin/marketplace.json` + `plugins/openseo/.mcp.json`: the Claude plugin is republished as marketplace `sgd-openseo`, with its MCP pointed at `https://openseo.sgd.com.au/mcp`. Install with `claude plugin marketplace add seriouslygooddesign/open-seo` then `claude plugin install sgd-openseo@sgd-openseo` (renamed from `openseo` so it never clashes with the hosted OpenSEO connector or plugin).
 4. This file and the update workflow (which also pushes the upstream merge to `main` when it can, so plugin skills stay current).
 
 New SGD features: build them on a branch, merge to `main`, and the workflow deploys them.
