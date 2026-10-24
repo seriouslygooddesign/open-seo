@@ -163,6 +163,7 @@ const resolveSelfHostAccess = (
   stage: string,
   provision: boolean,
   workersSubdomain: string,
+  selfHostDomain: string,
 ) =>
   Effect.gen(function* () {
     let teamDomain = yield* optionalVar("TEAM_DOMAIN");
@@ -237,7 +238,7 @@ const resolveSelfHostAccess = (
         applicationId: "SelfHostAccess",
         policyName: `open-seo ${stage} self-host users`,
         applicationName: `open-seo ${stage}`,
-        domain: `${workerName(stage)}.${subdomain}`,
+        domain: selfHostDomain || `${workerName(stage)}.${subdomain}`,
         emails: allowedEmails,
       });
       policyAud = application.aud;
@@ -319,6 +320,10 @@ export default Alchemy.Stack(
       );
     }
     const workersSubdomain = yield* readWorkersSubdomain({ required: false });
+    // SGD: optional custom hostname for the self-host stage (e.g.
+    // openseo.sgd.com.au). When set, the app worker serves that domain, the
+    // Access gate protects it, and the workers.dev URL is switched off.
+    const selfHostDomain = prod ? "" : yield* optionalVar("SELFHOST_DOMAIN");
 
     // Auth needs an absolute BETTER_AUTH_URL. Prod sets it explicitly;
     // previews always derive it from the deterministic worker name — a wrong
@@ -351,6 +356,7 @@ export default Alchemy.Stack(
       stage,
       authMode === "cloudflare_access" && !prod,
       workersSubdomain,
+      selfHostDomain,
     );
 
     // Created once and bound into BOTH workers — they share the same
@@ -426,7 +432,12 @@ export default Alchemy.Stack(
     const app = yield* Cloudflare.Worker("open-seo", {
       name: workerName(stage),
       // Prod serves the real domains; the zone is inferred from the hostname.
-      domain: prod ? ["app.openseo.so", "www.app.openseo.so"] : undefined,
+      domain: prod
+        ? ["app.openseo.so", "www.app.openseo.so"]
+        : selfHostDomain
+          ? [selfHostDomain]
+          : undefined,
+      ...(selfHostDomain ? { url: false } : {}),
       // Prebuilt worker from `vite build` (@cloudflare/vite-plugin). The entry
       // exports the DO + WorkflowEntrypoint classes (re-exported by
       // src/server.ts), which `bundle: false` requires. Sibling chunks under

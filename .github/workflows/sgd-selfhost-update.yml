@@ -1,0 +1,114 @@
+# SGD: keep openseo.sgd.com.au on the latest OpenSEO.
+#
+# Weekly (and on demand, and on every push to our main): merge
+# every-app/open-seo main on top of our fork's main inside the runner, build,
+# type-check and deploy with `pnpm deploy:selfhost`. A merge conflict or a
+# failed build stops the run before anything deploys, so the live site stays
+# on the last good version.
+#
+# The merge is not pushed back to main (GITHUB_TOKEN cannot push upstream's
+# workflow-file changes). Instead each successful deploy records the upstream
+# commit it shipped as an empty commit on the `deploy-log` branch. That also
+# counts as repo activity, so GitHub never auto-disables this schedule.
+#
+# Required repo secrets:
+#   CLOUDFLARE_API_TOKEN   see SGD-SELFHOST.md for the permission list
+#   CLOUDFLARE_ACCOUNT_ID
+#   ENV_SELFHOST           full contents of .env.selfhost
+
+name: SGD self-host update
+
+on:
+  schedule:
+    # Mondays 03:00 Melbourne (Sunday 16:00 UTC, AEDT)
+    - cron: "0 16 * * 0"
+  workflow_dispatch:
+  push:
+    branches: [main]
+
+concurrency:
+  group: sgd-selfhost-deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+  CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+  APP_URL: https://openseo.sgd.com.au
+
+jobs:
+  deploy:
+    if: github.repository == 'seriouslygooddesign/open-seo'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Merge latest upstream
+        id: merge
+        run: |
+          git config user.name "sgd-openseo-bot"
+          git config user.email "hello@sgd.com.au"
+          git remote add upstream https://github.com/every-app/open-seo.git
+          git fetch --no-tags upstream main
+          if ! git merge --no-edit upstream/main; then
+            echo "::error::Upstream changes conflict with SGD's changes. Merge upstream/main into main locally, resolve, and push."
+            exit 1
+          fi
+          echo "upstream_sha=$(git rev-parse --short upstream/main)" >> "$GITHUB_OUTPUT"
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Write .env.selfhost
+        run: printf '%s' "$ENV_SELFHOST" > .env.selfhost
+        env:
+          ENV_SELFHOST: ${{ secrets.ENV_SELFHOST }}
+
+      - name: Build and deploy
+        run: pnpm deploy:selfhost --yes
+
+      # The app sits behind Cloudflare Access, so an anonymous request must be
+      # redirected to the Access login. Anything else means it is down or,
+      # worse, public.
+      - name: Verify live and protected
+        run: |
+          for attempt in 1 2 3 4 5 6; do
+            location=$(curl -s -o /dev/null -w '%{redirect_url}' "$APP_URL/")
+            case "$location" in
+              https://*.cloudflareaccess.com/*)
+                echo "OK: $APP_URL is live behind Cloudflare Access"; exit 0 ;;
+            esac
+            echo "Attempt $attempt: redirect was '$location', retrying"
+            sleep 15
+          done
+          echo "::error::$APP_URL did not answer with a Cloudflare Access login. Check the deploy and Access application."
+          exit 1
+
+      - name: Record deploy
+        run: |
+          msg="Deployed upstream ${{ steps.merge.outputs.upstream_sha }} + main $(git rev-parse --short origin/main)"
+          echo "$msg" >> "$GITHUB_STEP_SUMMARY"
+          git fetch origin deploy-log || true
+          if git rev-parse --verify -q origin/deploy-log >/dev/null; then
+            git checkout -B deploy-log origin/deploy-log
+          else
+            git checkout --orphan deploy-log && git rm -rq --cached . && git clean -fdq
+          fi
+          git commit --allow-empty -m "$msg"
+          git push origin deploy-log
