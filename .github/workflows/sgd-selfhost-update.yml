@@ -83,13 +83,16 @@ jobs:
       - name: Build and deploy
         run: pnpm deploy:selfhost --yes
 
-      # The app sits behind Cloudflare Access, so an anonymous request must be
-      # redirected to the Access login. Anything else means it is down or,
-      # worse, public.
+      # The app sits behind Cloudflare Access, so an anonymous browser request
+      # must be redirected to the Access login. Anything else means it is down
+      # or, worse, public. Send browser headers: with Access Managed OAuth on
+      # (needed for the MCP), non-browser requests get a 401 OAuth challenge
+      # instead of the login redirect.
       - name: Verify live and protected
         run: |
           for attempt in 1 2 3 4 5 6; do
-            location=$(curl -s -o /dev/null -w '%{redirect_url}' "$APP_URL/")
+            location=$(curl -s -o /dev/null -w '%{redirect_url}' \
+              -A 'Mozilla/5.0 (sgd-selfhost-verify)' -H 'Accept: text/html' "$APP_URL/")
             case "$location" in
               https://*.cloudflareaccess.com/*)
                 echo "OK: $APP_URL is live behind Cloudflare Access"; exit 0 ;;
